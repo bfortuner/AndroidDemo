@@ -23,4 +23,10 @@ public class MainActivity extends AppCompatActivity {
         intent.putExtra(EXTRA_MESSAGE, message);
         startActivity(intent);
     }
+
+    public void openCamera(View view) {
+        System.out.print("Opening camera!");
+        Intent intent = new Intent(this, CameraActivity.class);
+        startActivity(intent);
+    }
 }

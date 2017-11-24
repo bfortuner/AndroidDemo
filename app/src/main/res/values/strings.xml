@@ -2,4 +2,6 @@
     <string name="app_name">AndroidDemo</string>
     <string name="edit_message">Enter a message</string>
     <string name="button_send">Send</string>
+    <string name="camera_msg">Hello, Camera.</string>
+    <string name="button_superresolution">Superresolution</string>
 </resources>
