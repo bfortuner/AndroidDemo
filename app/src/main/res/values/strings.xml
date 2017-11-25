@@ -3,6 +3,10 @@
     <string name="edit_message">Enter a message</string>
     <string name="button_send">Send</string>
     <string name="camera_msg">Hello, Camera.</string>
-    <string name="button_superresolution">Superresolution</string>
+    <string name="button_camera">Camera</string>
+    <string name="button_camera_preview">Camera preview</string>
     <string name="button_takephoto">Take photo</string>
+    <string name="button_loadphoto">Load photo</string>
+    <string name="button_preview_capture">Capture</string>
+    <string name="preview_desc">Camera preview description</string>
 </resources>

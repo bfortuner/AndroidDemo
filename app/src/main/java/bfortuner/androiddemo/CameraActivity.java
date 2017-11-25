@@ -21,6 +21,8 @@ import java.util.Date;
 
 public class CameraActivity extends AppCompatActivity {
 
+    private static  String LOG_TAG = "CameraActivity";
+    private static int GALLERY_REQUEST_ID = 1;
     private Button takePictureButton;
     private ImageView imageView;
     private Uri file;
@@ -30,7 +32,7 @@ public class CameraActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_camera);
 
-        takePictureButton = findViewById(R.id.button_image);
+        takePictureButton = findViewById(R.id.button_takephoto);
         System.out.print("BTN " + takePictureButton);
         imageView = findViewById(R.id.imageview);
 
@@ -75,10 +77,10 @@ public class CameraActivity extends AppCompatActivity {
                 "IMG_"+ timeStamp + ".jpg");
     }
 
-    private void addPhotoToGallery() {
-        Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-        mediaScanIntent.setData(file); //your file uri
-        this.sendBroadcast(mediaScanIntent);
+    public void loadPicture(View view) {
+        Intent photoPickerIntent = new Intent(Intent.ACTION_PICK);
+        photoPickerIntent.setType("image/*");
+        startActivityForResult(photoPickerIntent, GALLERY_REQUEST_ID);
     }
 
     @Override
@@ -86,8 +88,11 @@ public class CameraActivity extends AppCompatActivity {
         if (requestCode == 100) {
             if (resultCode == RESULT_OK) {
                 imageView.setImageURI(file);
-//                addPhotoToGallery();
             }
+        } else if (requestCode == GALLERY_REQUEST_ID) {
+            Log.v(LOG_TAG, "Gallery request");
+            file = data.getData();
+            imageView.setImageURI(file);
         }
     }
 }
