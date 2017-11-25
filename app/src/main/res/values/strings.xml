@@ -4,4 +4,5 @@
     <string name="button_send">Send</string>
     <string name="camera_msg">Hello, Camera.</string>
     <string name="button_superresolution">Superresolution</string>
+    <string name="button_takephoto">Take photo</string>
 </resources>
