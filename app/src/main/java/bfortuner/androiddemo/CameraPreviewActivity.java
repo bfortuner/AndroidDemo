@@ -102,12 +102,43 @@ public class CameraPreviewActivity extends AppCompatActivity {
     public void onResume() {
         super.onResume();
         startBackgroundThread();
+
+        if (textureView.isAvailable()) {
+            openCamera();
+        } else {
+            textureView.setSurfaceTextureListener(textureListener);
+        }
+    }
+
+    @Override
+    public void onPause() {
+        closeCamera();
+        stopBackgroundThread();
+        super.onPause();
+    }
+
+    private void closeCamera() {
+        if (null != cameraDevice) {
+            cameraDevice.close();
+            cameraDevice = null;
+        }
     }
 
     private void startBackgroundThread() {
         backgroundThread = new HandlerThread("CameraBackground");
         backgroundThread.start();
         backgroundHandler = new Handler(backgroundThread.getLooper());
+    }
+
+    protected void stopBackgroundThread() {
+        backgroundThread.quitSafely();
+        try {
+            backgroundThread.join();
+            backgroundThread = null;
+            backgroundHandler = null;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     private void openCamera() {
