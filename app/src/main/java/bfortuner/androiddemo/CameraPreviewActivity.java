@@ -7,6 +7,7 @@ import android.content.res.Configuration;
 import android.graphics.Camera;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
+import android.graphics.Point;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
@@ -31,8 +32,10 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.widget.TextView;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class CameraPreviewActivity extends AppCompatActivity {
@@ -48,9 +51,19 @@ public class CameraPreviewActivity extends AppCompatActivity {
     private Image image = null;
     private ImageReader reader;
     private Integer sensorOrientation;
+    private Size previewSize;
     private HandlerThread backgroundThread;
     private Handler backgroundHandler;
     private boolean processing = false;
+    /**
+     * Max preview width that is guaranteed by Camera2 API
+     */
+    private static final int MAX_PREVIEW_WIDTH = 1920;
+
+    /**
+     * Max preview height that is guaranteed by Camera2 API
+     */
+    private static final int MAX_PREVIEW_HEIGHT = 1080;
 
 
     private static final int REQUEST_CAMERA_PERMISSION = 200;
@@ -159,13 +172,13 @@ public class CameraPreviewActivity extends AppCompatActivity {
             }, REQUEST_CAMERA_PERMISSION);
             return;
         }
+        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+
 
         setUpCameraOutputs(width, height);
         configureTransform(width, height);
 
-        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
-            cameraId = manager.getCameraIdList()[0];
             manager.openCamera(cameraId, stateCallback, backgroundHandler);
 
         } catch (CameraAccessException e) {
@@ -174,38 +187,51 @@ public class CameraPreviewActivity extends AppCompatActivity {
     }
 
     private void setUpCameraOutputs(int width, int height) {
-        //CameraManager manager = (CameraManager) getSystemService(this.CAMERA_SERVICE);
+        CameraManager manager = (CameraManager) getSystemService(this.CAMERA_SERVICE);
         try {
-            //CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+            // Only using the rear camera for now
+            cameraId = manager.getCameraIdList()[0];
 
-//            StreamConfigurationMap map = characteristics.get(
-//                    CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+            CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+
+            StreamConfigurationMap map = characteristics.get(
+                    CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
             // For still image captures, we use the largest available size.
-//            Size largest = Collections.max(
-//                    Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
-//                    new CameraFragment.CompareSizesByArea());
-            //sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+            Size largest = Collections.max(
+                    Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
+                    new CameraFragment.CompareSizesByArea());
+
+            sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+
+            Point displaySize = new Point();
+            getWindowManager().getDefaultDisplay().getSize(displaySize);
+            int maxPreviewWidth = displaySize.x;
+            int maxPreviewHeight = displaySize.y;
+
+            previewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class),
+                    width, height, maxPreviewWidth, maxPreviewHeight, largest);
+
             final int orientation = getResources().getConfiguration().orientation;
             if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
                 textureView.setAspectRatio(width, height);
             } else {
                 textureView.setAspectRatio(height, width);
             }
-//        } catch (CameraAccessException e) {
-//            e.printStackTrace();
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
         } catch (NullPointerException e) {
             e.printStackTrace();
         }
     }
 
     private void configureTransform(final int viewWidth, final int viewHeight) {
-        if (null == textureView) {
+        if (null == textureView || null == previewSize) {
             return;
         }
         final int rotation = getWindowManager().getDefaultDisplay().getRotation();
         final Matrix matrix = new Matrix();
         final RectF viewRect = new RectF(0, 0, viewWidth, viewHeight);
-        final RectF bufferRect = new RectF(0, 0, viewWidth, viewHeight);
+        final RectF bufferRect = new RectF(0, 0, previewSize.getHeight(), previewSize.getWidth());
         final float centerX = viewRect.centerX();
         final float centerY = viewRect.centerY();
         if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
@@ -213,14 +239,47 @@ public class CameraPreviewActivity extends AppCompatActivity {
             matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
             final float scale =
                     Math.max(
-                            (float) viewHeight / viewHeight,
-                            (float) viewWidth / viewWidth);
+                            (float) viewHeight / previewSize.getHeight(),
+                            (float) viewWidth / previewSize.getWidth());
             matrix.postScale(scale, scale, centerX, centerY);
             matrix.postRotate(90 * (rotation - 2), centerX, centerY);
         } else if (Surface.ROTATION_180 == rotation) {
             matrix.postRotate(180, centerX, centerY);
         }
         textureView.setTransform(matrix);
+    }
+
+    private static Size chooseOptimalSize(Size[] choices, int textureViewWidth,
+                                          int textureViewHeight, int maxWidth, int maxHeight, Size aspectRatio) {
+
+        // Collect the supported resolutions that are at least as big as the preview Surface
+        List<Size> bigEnough = new ArrayList<>();
+        // Collect the supported resolutions that are smaller than the preview Surface
+        List<Size> notBigEnough = new ArrayList<>();
+        int w = aspectRatio.getWidth();
+        int h = aspectRatio.getHeight();
+        for (Size option : choices) {
+            if (option.getWidth() <= maxWidth && option.getHeight() <= maxHeight &&
+                    option.getHeight() == option.getWidth() * h / w) {
+                if (option.getWidth() >= textureViewWidth &&
+                        option.getHeight() >= textureViewHeight) {
+                    bigEnough.add(option);
+                } else {
+                    notBigEnough.add(option);
+                }
+            }
+        }
+
+        // Pick the smallest of those big enough. If there is no one big enough, pick the
+        // largest of those not big enough.
+        if (bigEnough.size() > 0) {
+            return Collections.min(bigEnough, new CameraFragment.CompareSizesByArea());
+        } else if (notBigEnough.size() > 0) {
+            return Collections.max(notBigEnough, new CameraFragment.CompareSizesByArea());
+        } else {
+            Log.e("chooseOptimalSize", "Couldn't find any suitable preview size");
+            return choices[0];
+        }
     }
 
     protected void createCameraPreview() {
