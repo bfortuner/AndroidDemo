@@ -55,7 +55,6 @@ public class CameraPreviewActivity extends AppCompatActivity {
     private CaptureRequest capturePreviewRequest;
     private Image image = null;
     private ImageReader reader;
-    private Integer sensorOrientation;
     private Size previewSize;
     private HandlerThread backgroundThread;
     private Handler backgroundHandler;
@@ -227,8 +226,6 @@ public class CameraPreviewActivity extends AppCompatActivity {
             Size largest = Collections.max(
                     Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
                     new CameraFragment.CompareSizesByArea());
-
-            sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
 
             Point displaySize = new Point();
             getWindowManager().getDefaultDisplay().getSize(displaySize);
