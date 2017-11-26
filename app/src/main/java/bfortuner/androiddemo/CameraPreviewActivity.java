@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Camera;
+import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -11,27 +12,38 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
 import android.media.Image;
+import android.media.ImageReader;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
 import android.widget.TextView;
 
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 public class CameraPreviewActivity extends AppCompatActivity {
 
     private AutoFitTextureView textureView;
     private TextView textView;
+    private Integer counter = 0;
     private CameraDevice cameraDevice;
     private String cameraId;
     protected CameraCaptureSession cameraCaptureSession;
     protected CaptureRequest.Builder captureRequestBuilder;
     private CaptureRequest capturePreviewRequest;
     private Image image = null;
+    private HandlerThread backgroundThread;
+    private Handler backgroundHandler;
+    private boolean processing = false;
+
+
     private static final int REQUEST_CAMERA_PERMISSION = 200;
 
     private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
@@ -86,6 +98,18 @@ public class CameraPreviewActivity extends AppCompatActivity {
         textView = findViewById(R.id.textView2);
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        startBackgroundThread();
+    }
+
+    private void startBackgroundThread() {
+        backgroundThread = new HandlerThread("CameraBackground");
+        backgroundThread.start();
+        backgroundHandler = new Handler(backgroundThread.getLooper());
+    }
+
     private void openCamera() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED
@@ -98,7 +122,7 @@ public class CameraPreviewActivity extends AppCompatActivity {
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
             cameraId = manager.getCameraIdList()[0];
-            manager.openCamera(cameraId, stateCallback, null);
+            manager.openCamera(cameraId, stateCallback, backgroundHandler);
 
         } catch (CameraAccessException e) {
             e.printStackTrace();
@@ -111,10 +135,46 @@ public class CameraPreviewActivity extends AppCompatActivity {
             assert texture != null;
             Surface surface = new Surface(texture);
 
+
+            int width = 227;
+            int height = 227;
+            ImageReader reader = ImageReader.newInstance(width, height, ImageFormat.YUV_420_888, 4);
+            ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
+                @Override
+                public void onImageAvailable(ImageReader reader) {
+                    Log.v("Image available", "reading image...");
+                    image = reader.acquireNextImage();
+                    counter++;
+                    if (processing) {
+                        image.close();
+                        return;
+                    }
+                    processing = true;
+                    try {
+                        TimeUnit.SECONDS.sleep(5);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            textView.setText("My man " + counter);
+                            processing = false;
+                        }
+                    });
+                    image.close();
+                }
+            };
+
+            // Adding the reader listener to the background thread's message queue
+            reader.setOnImageAvailableListener(readerListener, backgroundHandler);
+
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             captureRequestBuilder.addTarget(surface);
+            captureRequestBuilder.addTarget(reader.getSurface());
 
-            cameraDevice.createCaptureSession(Arrays.asList(surface), new CameraCaptureSession.StateCallback() {
+            cameraDevice.createCaptureSession(Arrays.asList(surface, reader.getSurface()), new CameraCaptureSession.StateCallback() {
                 @Override
                 public void onConfigured(@NonNull CameraCaptureSession captureSession) {
                     if (null == cameraDevice) {
@@ -129,7 +189,7 @@ public class CameraPreviewActivity extends AppCompatActivity {
                     capturePreviewRequest = captureRequestBuilder.build();
                     try {
                         cameraCaptureSession.setRepeatingRequest(capturePreviewRequest,
-                                null, null);
+                                null, backgroundHandler);
                     } catch (CameraAccessException e ) {
                         e.printStackTrace();
                     }
