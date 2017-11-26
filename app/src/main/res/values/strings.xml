@@ -5,6 +5,7 @@
     <string name="camera_msg">Hello, Camera.</string>
     <string name="button_camera">Camera</string>
     <string name="button_camera_preview">Camera preview</string>
+    <string name="colin_button">My Man Camera preview</string>
     <string name="button_takephoto">Take photo</string>
     <string name="button_loadphoto">Load photo</string>
     <string name="button_preview_capture">Capture</string>

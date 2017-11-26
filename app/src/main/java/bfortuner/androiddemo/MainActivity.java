@@ -37,4 +37,10 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(this, CameraPreview.class);
         startActivity(intent);
     }
+
+    public void openMyManCameraPreview(View view) {
+        Log.v(LOG_TAG, "Opening my man camera preview!");
+        Intent intent = new Intent(this, CameraPreviewActivity.class);
+        startActivity(intent);
+    }
 }

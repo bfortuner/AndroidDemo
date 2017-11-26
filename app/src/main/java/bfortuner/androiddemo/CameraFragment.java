@@ -41,6 +41,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
@@ -264,6 +265,9 @@ public class CameraFragment extends Fragment
      */
     private int mSensorOrientation;
 
+    private TextView tv;
+
+
     /**
      * A {@link CameraCaptureSession.CaptureCallback} that handles events related to JPEG capture.
      */
@@ -413,6 +417,8 @@ public class CameraFragment extends Fragment
         view.findViewById(R.id.picture).setOnClickListener(this);
         view.findViewById(R.id.info).setOnClickListener(this);
         mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
+
+        tv = view.findViewById(R.id.sample_text);
     }
 
     @Override
@@ -568,6 +574,10 @@ public class CameraFragment extends Fragment
                 mFlashSupported = available == null ? false : available;
 
                 mCameraId = cameraId;
+
+
+                tv.setText("My Man!");
+
                 return;
             }
         } catch (CameraAccessException e) {
@@ -696,6 +706,7 @@ public class CameraFragment extends Fragment
                                 mPreviewRequest = mPreviewRequestBuilder.build();
                                 mCaptureSession.setRepeatingRequest(mPreviewRequest,
                                         mCaptureCallback, mBackgroundHandler);
+
                             } catch (CameraAccessException e) {
                                 e.printStackTrace();
                             }

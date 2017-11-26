@@ -7,6 +7,21 @@
     tools:context="bfortuner.androiddemo.MainActivity"
     tools:layout_editor_absoluteY="81dp">
 
+    <Button
+        android:id="@+id/button6"
+        android:layout_width="0dp"
+        android:layout_height="47dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:onClick="openMyManCameraPreview"
+        android:text="@string/colin_button"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/button" />
+
     <EditText
         android:id="@+id/editText"
         android:layout_width="0dp"
