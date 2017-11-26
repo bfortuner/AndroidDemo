@@ -3,8 +3,8 @@ package bfortuner.androiddemo;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.content.res.Configuration;
-import android.graphics.Camera;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Point;
@@ -19,6 +19,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
+import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
@@ -40,6 +41,9 @@ import java.util.concurrent.TimeUnit;
 
 public class CameraPreviewActivity extends AppCompatActivity {
 
+    private static final int REQUEST_CAMERA_PERMISSION = 200;
+    private static final String LOG_TAG = "CameraPreview";
+
     private AutoFitTextureView textureView;
     private TextView textView;
     private Integer counter = 0;
@@ -50,12 +54,56 @@ public class CameraPreviewActivity extends AppCompatActivity {
     private CaptureRequest capturePreviewRequest;
     private Image image = null;
     private ImageReader reader;
-    private Integer sensorOrientation;
     private Size previewSize;
     private HandlerThread backgroundThread;
     private Handler backgroundHandler;
     private boolean processing = false;
-    private static final int REQUEST_CAMERA_PERMISSION = 200;
+    private AssetManager mgr;
+    private String predictedClass = "none";
+
+    /**
+     * Max preview width that is guaranteed by Camera2 API
+     */
+    private static final int MAX_PREVIEW_WIDTH = 1920;
+
+    /**
+     * Max preview height that is guaranteed by Camera2 API
+     */
+    private static final int MAX_PREVIEW_HEIGHT = 1080;
+
+    static {
+        System.loadLibrary("native-lib");
+    }
+
+    public native String classificationFromCaffe2(int h, int w, byte[] Y, byte[] U, byte[] V,
+                                                  int rowStride, int pixelStride, boolean r_hwc);
+    public native void initCaffe2(AssetManager mgr);
+    private class SetUpNeuralNetwork extends AsyncTask<Void, Void, Void> {
+        @Override
+        protected Void doInBackground(Void[] v) {
+            try {
+                initCaffe2(mgr);
+                predictedClass = "Neural net loaded! Inferring...";
+            } catch (Exception e) {
+                Log.d(LOG_TAG, "Couldn't load neural network.");
+            }
+            return null;
+        }
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_camera_preview2);
+
+        textureView = findViewById(R.id.autoFitTextureView);
+        textureView.setSurfaceTextureListener(textureListener);
+
+        textView = findViewById(R.id.textView2);
+
+        mgr = getResources().getAssets();
+        new SetUpNeuralNetwork().execute();
+    }
 
     private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
         @Override
@@ -76,7 +124,6 @@ public class CameraPreviewActivity extends AppCompatActivity {
         }
     };
 
-
     private TextureView.SurfaceTextureListener textureListener = new TextureView.SurfaceTextureListener() {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
@@ -96,18 +143,6 @@ public class CameraPreviewActivity extends AppCompatActivity {
         public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
         }
     };
-
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_camera_preview2);
-
-        textureView = findViewById(R.id.autoFitTextureView);
-        textureView.setSurfaceTextureListener(textureListener);
-
-        textView = findViewById(R.id.textView2);
-    }
 
     @Override
     public void onResume() {
@@ -275,7 +310,6 @@ public class CameraPreviewActivity extends AppCompatActivity {
             assert texture != null;
             Surface surface = new Surface(texture);
 
-
             int width = 227;
             int height = 227;
             reader = ImageReader.newInstance(width, height, ImageFormat.YUV_420_888, 4);
@@ -299,8 +333,8 @@ public class CameraPreviewActivity extends AppCompatActivity {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            textView.setText("My man " + counter);
-                            processing = false;
+                        textView.setText("My man " + counter);
+                        processing = false;
                         }
                     });
                     image.close();
