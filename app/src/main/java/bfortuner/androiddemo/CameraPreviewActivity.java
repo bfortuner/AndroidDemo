@@ -55,17 +55,6 @@ public class CameraPreviewActivity extends AppCompatActivity {
     private HandlerThread backgroundThread;
     private Handler backgroundHandler;
     private boolean processing = false;
-    /**
-     * Max preview width that is guaranteed by Camera2 API
-     */
-    private static final int MAX_PREVIEW_WIDTH = 1920;
-
-    /**
-     * Max preview height that is guaranteed by Camera2 API
-     */
-    private static final int MAX_PREVIEW_HEIGHT = 1080;
-
-
     private static final int REQUEST_CAMERA_PERMISSION = 200;
 
     private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
@@ -200,8 +189,6 @@ public class CameraPreviewActivity extends AppCompatActivity {
             Size largest = Collections.max(
                     Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
                     new CameraFragment.CompareSizesByArea());
-
-            sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
 
             Point displaySize = new Point();
             getWindowManager().getDefaultDisplay().getSize(displaySize);
