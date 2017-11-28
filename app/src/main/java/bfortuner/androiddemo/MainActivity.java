@@ -43,4 +43,10 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(this, CameraPreviewActivity.class);
         startActivity(intent);
     }
+
+    public void openNewsActivity(View view) {
+        Log.v(LOG_TAG, "Opening news activity!");
+        Intent intent = new Intent(this, NewsActivity.class);
+        startActivity(intent);
+    }
 }
