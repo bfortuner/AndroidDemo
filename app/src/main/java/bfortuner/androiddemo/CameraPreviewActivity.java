@@ -33,6 +33,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.widget.TextView;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -60,6 +61,7 @@ public class CameraPreviewActivity extends AppCompatActivity {
     private boolean processing = false;
     private AssetManager mgr;
     private String predictedClass = "none";
+    private boolean run_HWC = false;
 
     /**
      * Max preview width that is guaranteed by Camera2 API
@@ -324,17 +326,35 @@ public class CameraPreviewActivity extends AppCompatActivity {
                         return;
                     }
                     processing = true;
-                    try {
-                        TimeUnit.SECONDS.sleep(1);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+//                    try {
+//                        TimeUnit.SECONDS.sleep(1);
+//                    } catch (InterruptedException e) {
+//                        e.printStackTrace();
+//                    }
+                    int w = image.getWidth();
+                    int h = image.getHeight();
+                    ByteBuffer Ybuffer = image.getPlanes()[0].getBuffer();
+                    ByteBuffer Ubuffer = image.getPlanes()[1].getBuffer();
+                    ByteBuffer Vbuffer = image.getPlanes()[2].getBuffer();
 
+                    // TODO: use these for proper image processing on different formats.
+                    int rowStride = image.getPlanes()[1].getRowStride();
+                    int pixelStride = image.getPlanes()[1].getPixelStride();
+                    byte[] Y = new byte[Ybuffer.capacity()];
+                    byte[] U = new byte[Ubuffer.capacity()];
+                    byte[] V = new byte[Vbuffer.capacity()];
+                    Ybuffer.get(Y);
+                    Ubuffer.get(U);
+                    Vbuffer.get(V);
+
+                    predictedClass = classificationFromCaffe2(h, w, Y, U, V,
+                            rowStride, pixelStride, run_HWC);
+                    Log.v(LOG_TAG, "class:"+predictedClass);
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                        textView.setText("My man " + counter);
-                        processing = false;
+                            textView.setText(predictedClass);
+                            processing = false;
                         }
                     });
                     image.close();
