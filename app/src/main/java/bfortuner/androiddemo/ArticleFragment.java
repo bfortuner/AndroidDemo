@@ -1,5 +1,6 @@
 package bfortuner.androiddemo;
 
+import android.app.Activity;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
@@ -18,6 +19,9 @@ import android.view.ViewGroup;
  * create an instance of this fragment.
  */
 public class ArticleFragment extends Fragment {
+    //OnArticleSecletedListener mCallback;
+
+
     // TODO: Rename parameter arguments, choose names that match
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
     private static final String ARG_PARAM1 = "param1";
@@ -94,4 +98,58 @@ public class ArticleFragment extends Fragment {
         // TODO: Update argument type and name
         void onFragmentInteraction(Uri uri);
     }
+
+//    //Container Activity must implement this interface
+//    public interface OnArticleSelectedListener {
+//        public void onArticle
+//    }
+
+//    @Override
+//    public void onAttach(Context context) {
+//        super.onAttach(context);
+//
+//        // This makes sure that the container activity has implemented
+//        // the callback interface. If not, it throws an exception
+//        try {
+//            mCallback = (OnArticleSelectedListener) context;
+//        } catch (ClassCastException e) {
+//            throw new ClassCastException(context.toString()
+//                    + " must implement OnArticleSelectedListener");
+//        }
+//    }
+
+
+//    public void onArticleSelected(int position) {
+//        // The user selected the headline of an article from the HeadlinesFragment
+//        // Do something here to display that article
+//
+//        ArticleFragment articleFrag = (ArticleFragment)
+//                getSupportFragmentManager().findFragmentById(R.id.article_fragment);
+//
+//        if (articleFrag != null) {
+//            // If article frag is available, we're in two-pane layout...
+//
+//            // Call a method in the ArticleFragment to update its content
+//            articleFrag.updateArticleView(position);
+//        } else {
+//            // Otherwise, we're in the one-pane layout and must swap frags...
+//
+//            // Create fragment and give it an argument for the selected article
+//            ArticleFragment newFragment = new ArticleFragment();
+//            Bundle args = new Bundle();
+//            args.putInt(ArticleFragment.ARG_POSITION, position);
+//            newFragment.setArguments(args);
+//
+//            FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+//
+//            // Replace whatever is in the fragment_container view with this fragment,
+//            // and add the transaction to the back stack so the user can navigate back
+//            transaction.replace(R.id.fragment_container, newFragment);
+//            transaction.addToBackStack(null);
+//
+//            // Commit the transaction
+//            transaction.commit();
+//        }
+//
+//    }
 }
