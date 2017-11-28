@@ -40,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void openMyManCameraPreview(View view) {
         Log.v(LOG_TAG, "Opening my man camera preview!");
-        Intent intent = new Intent(this, CameraPreviewActivity.class);
+        Intent intent = new Intent(this, ClassifierActivity.class);
         startActivity(intent);
     }
 

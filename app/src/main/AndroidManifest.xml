@@ -55,7 +55,16 @@
         <activity
             android:name=".NewsActivity"
             android:label="@string/title_activity_news"
-            android:theme="@style/AppTheme.NoActionBar"></activity>
+            android:theme="@style/AppTheme.NoActionBar" />
+        <activity
+            android:name=".ClassifierActivity"
+            android:label="@string/title_activity_classifier"
+            android:parentActivityName=".CameraActivity"
+            android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="bfortuner.androiddemo.CameraActivity" />
+        </activity>
     </application>
 
 </manifest>
