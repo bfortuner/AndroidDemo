@@ -22,6 +22,7 @@ public class ClassifierActivity extends CameraPreviewActivity implements OnImage
     @Override
     public void onPreviewSizeChosen(final Size size, final int rotation) {
         Log.d("HI COLIN","WAS UP");
-        return;
+        previewHeight = size.getWidth();
+        previewHeight = size.getHeight();
     }
 }

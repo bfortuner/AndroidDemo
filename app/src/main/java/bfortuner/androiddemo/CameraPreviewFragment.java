@@ -27,6 +27,7 @@ import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.app.Fragment;
 import android.support.v4.content.ContextCompat;
+import android.text.TextUtils;
 import android.util.Size;
 import android.view.LayoutInflater;
 import android.view.Surface;
@@ -40,12 +41,18 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 
 public class CameraPreviewFragment extends Fragment {
 
     private static final int REQUEST_CAMERA_PERMISSION = 200;
+    /**
+     * The camera preview size will be chosen to be the smallest frame by pixel size capable of
+     * containing a DESIRED_SIZE x DESIRED_SIZE square.
+     */
+    private static final int MINIMUM_PREVIEW_SIZE = 320;
 
     private CameraDevice mCameraDevice;
 
@@ -96,6 +103,15 @@ public class CameraPreviewFragment extends Fragment {
      */
     private CaptureRequest mCapturePreviewRequest;
 
+    /**
+     * The rotation in degrees of the camera sensor from the display.
+     */
+    private Integer mSensorOrientation;
+
+    /** The input size in pixels desired by TensorFlow (width and height of a square bitmap). */
+    private final Size mInputSize;
+
+
     private final int mLayout;
 
     /**
@@ -110,8 +126,7 @@ public class CameraPreviewFragment extends Fragment {
 
     private TextView mTextView;
 
-
-    private CameraPreviewFragment(
+    public CameraPreviewFragment(
             final PreviewCallback previewCallback,
             final ImageReader.OnImageAvailableListener imageListener,
             final int layout,
@@ -119,6 +134,7 @@ public class CameraPreviewFragment extends Fragment {
         this.mCameraPreviewCallback = previewCallback;
         this.mImageListener = imageListener;
         this.mLayout = layout;
+        this.mInputSize = inputSize;
     }
 
 
@@ -175,6 +191,14 @@ public class CameraPreviewFragment extends Fragment {
         return inflater.inflate(mLayout, container, false);
     }
 
+    @Override
+    public void onViewCreated(final View view, final Bundle savedInstanceState) {
+        final Activity activity = getActivity();
+
+        mTextureView = activity.findViewById(R.id.autoFitTextureView);
+        mTextView = activity.findViewById(R.id.textView2);
+    }
+
 
 //    @Override
 //    public void onAttach(Context context) {
@@ -196,14 +220,8 @@ public class CameraPreviewFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-//        startBackgroundThread();
-        final Activity mActivity = getActivity();
+        startBackgroundThread();
 
-        mTextureView = mActivity.findViewById(R.id.autoFitTextureView);
-        mTextureView.setSurfaceTextureListener(textureListener);
-
-        mTextView = mActivity.findViewById(R.id.textView2);
-//
         if (mTextureView.isAvailable()) {
             openCamera(mTextureView.getWidth(), mTextureView.getHeight());
         } else {
@@ -244,7 +262,7 @@ public class CameraPreviewFragment extends Fragment {
         CameraManager manager = (CameraManager) mActivity.getSystemService(Context.CAMERA_SERVICE);
 
 
-        setUpCameraOutputs(width, height);
+        setUpCameraOutputs();
         configureTransform(width, height);
 
         try {
@@ -255,7 +273,7 @@ public class CameraPreviewFragment extends Fragment {
         }
     }
 
-    private void setUpCameraOutputs(int width, int height) {
+    private void setUpCameraOutputs() {
         final Activity mActivity = getActivity();
         CameraManager manager = (CameraManager) mActivity.getSystemService(mActivity.CAMERA_SERVICE);
         try {
@@ -266,30 +284,28 @@ public class CameraPreviewFragment extends Fragment {
 
             StreamConfigurationMap map = characteristics.get(
                     CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-            // For still image captures, we use the largest available size.
-            Size largest = Collections.max(
-                    Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
-                    new CameraFragment.CompareSizesByArea());
 
+            mSensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
             Point displaySize = new Point();
             mActivity.getWindowManager().getDefaultDisplay().getSize(displaySize);
-            int maxPreviewWidth = displaySize.x;
-            int maxPreviewHeight = displaySize.y;
 
             mPreviewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class),
-                    width, height, maxPreviewWidth, maxPreviewHeight, largest);
+                    mInputSize.getWidth(),
+                    mInputSize.getHeight());
 
             final int orientation = getResources().getConfiguration().orientation;
             if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                mTextureView.setAspectRatio(width, height);
+                mTextureView.setAspectRatio(mPreviewSize.getWidth(), mPreviewSize.getHeight());
             } else {
-                mTextureView.setAspectRatio(height, width);
+                mTextureView.setAspectRatio(mPreviewSize.getHeight(), mPreviewSize.getWidth());
             }
         } catch (CameraAccessException e) {
             e.printStackTrace();
         } catch (NullPointerException e) {
             e.printStackTrace();
         }
+
+        mCameraPreviewCallback.onPreviewSizeChosen(mPreviewSize, mSensorOrientation);
     }
 
     private void configureTransform(final int viewWidth, final int viewHeight) {
@@ -319,35 +335,44 @@ public class CameraPreviewFragment extends Fragment {
         mTextureView.setTransform(matrix);
     }
 
-    private static Size chooseOptimalSize(Size[] choices, int textureViewWidth,
-                                          int textureViewHeight, int maxWidth, int maxHeight, Size aspectRatio) {
+    private static Size chooseOptimalSize(Size[] choices, final int width, final int height) {
+
+        final int minSize = Math.max(Math.min(width, height), MINIMUM_PREVIEW_SIZE);
+        final Size desiredSize = new Size(width, height);
 
         // Collect the supported resolutions that are at least as big as the preview Surface
-        List<Size> bigEnough = new ArrayList<>();
-        // Collect the supported resolutions that are smaller than the preview Surface
-        List<Size> notBigEnough = new ArrayList<>();
-        int w = aspectRatio.getWidth();
-        int h = aspectRatio.getHeight();
-        for (Size option : choices) {
-            if (option.getWidth() <= maxWidth && option.getHeight() <= maxHeight &&
-                    option.getHeight() == option.getWidth() * h / w) {
-                if (option.getWidth() >= textureViewWidth &&
-                        option.getHeight() >= textureViewHeight) {
-                    bigEnough.add(option);
-                } else {
-                    notBigEnough.add(option);
-                }
+        boolean exactSizeFound = false;
+        final List<Size> bigEnough = new ArrayList<Size>();
+        final List<Size> tooSmall = new ArrayList<Size>();
+        for (final Size option : choices) {
+            if (option.equals(desiredSize)) {
+                // Set the size but don't return yet so that remaining sizes will still be logged.
+                exactSizeFound = true;
+            }
+
+            if (option.getHeight() >= minSize && option.getWidth() >= minSize) {
+                bigEnough.add(option);
+            } else {
+                tooSmall.add(option);
             }
         }
 
-        // Pick the smallest of those big enough. If there is no one big enough, pick the
-        // largest of those not big enough.
+        Log.i("chooseOptimalSize","Desired size: " + desiredSize + ", min size: " + minSize + "x" + minSize);
+        Log.i("chooseOptimalSize","Desired size: " + desiredSize + ", min size: " + minSize + "x" + minSize);
+        Log.i("chooseOptimalSize","Rejected preview sizes: [" + TextUtils.join(", ", tooSmall) + "]");
+
+        if (exactSizeFound) {
+            Log.i("chooseOptimalSize","Exact size match found.");
+            return desiredSize;
+        }
+
+        // Pick the smallest of those, assuming we found any
         if (bigEnough.size() > 0) {
-            return Collections.min(bigEnough, new CameraFragment.CompareSizesByArea());
-        } else if (notBigEnough.size() > 0) {
-            return Collections.max(notBigEnough, new CameraFragment.CompareSizesByArea());
+            final Size chosenSize = Collections.min(bigEnough, new CompareSizesByArea());
+            Log.i("chooseOptimalSize","Chosen size: " + chosenSize.getWidth() + "x" + chosenSize.getHeight());
+            return chosenSize;
         } else {
-            Log.e("chooseOptimalSize", "Couldn't find any suitable preview size");
+            Log.e("chooseOptimalSize","Couldn't find any suitable preview size");
             return choices[0];
         }
     }
@@ -356,11 +381,15 @@ public class CameraPreviewFragment extends Fragment {
         try {
             SurfaceTexture texture = mTextureView.getSurfaceTexture();
             assert texture != null;
-            Surface surface = new Surface(texture);
+            Log.v("", "Creating camera preview... texture is not null...");
 
-            int width = 227;
-            int height = 227;
-            mReader = ImageReader.newInstance(width, height, ImageFormat.YUV_420_888, 4);
+            // We configure the size of default buffer to be the size of camera preview we want.
+            texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+
+            final Surface surface = new Surface(texture);
+
+            mReader = ImageReader.newInstance(mPreviewSize.getWidth(), mPreviewSize.getHeight(),
+                    ImageFormat.YUV_420_888, 2);
 
             // Adding the reader listener to the background thread's message queue
             mReader.setOnImageAvailableListener(mImageListener, mBackgroundHandler);
@@ -368,8 +397,10 @@ public class CameraPreviewFragment extends Fragment {
             mCaptureRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             mCaptureRequestBuilder.addTarget(surface);
             mCaptureRequestBuilder.addTarget(mReader.getSurface());
+            Log.v("", "Creating camera preview... targets added...");
 
-            mCameraDevice.createCaptureSession(Arrays.asList(surface, mReader.getSurface()), new CameraCaptureSession.StateCallback() {
+            mCameraDevice.createCaptureSession(Arrays.asList(surface, mReader.getSurface()),
+                    new CameraCaptureSession.StateCallback() {
                 @Override
                 public void onConfigured(@NonNull CameraCaptureSession captureSession) {
                     if (null == mCameraDevice) {
@@ -397,6 +428,18 @@ public class CameraPreviewFragment extends Fragment {
 
         } catch (CameraAccessException e) {
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * Compares two {@code Size}s based on their areas.
+     */
+    static class CompareSizesByArea implements Comparator<Size> {
+        @Override
+        public int compare(final Size lhs, final Size rhs) {
+            // We cast here to ensure the multiplications won't overflow
+            return Long.signum(
+                    (long) lhs.getWidth() * lhs.getHeight() - (long) rhs.getWidth() * rhs.getHeight());
         }
     }
 

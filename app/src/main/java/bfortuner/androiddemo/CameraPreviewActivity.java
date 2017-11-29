@@ -66,6 +66,9 @@ public abstract class CameraPreviewActivity extends Activity
     private String predictedClass = "none";
     private boolean run_HWC = false;
 
+    protected int previewWidth = 0;
+    protected int previewHeight = 0;
+
     static {
         System.loadLibrary("native-lib");
     }
@@ -93,14 +96,56 @@ public abstract class CameraPreviewActivity extends Activity
 
         setFragment();
 
-//
-//        textureView = findViewById(R.id.autoFitTextureView);
-//        textureView.setSurfaceTextureListener(textureListener);
-//
-//        textView = findViewById(R.id.textView2);
-//
 //        mgr = getResources().getAssets();
 //        new SetUpNeuralNetwork().execute();
+    }
+
+    @Override
+    public void onImageAvailable(final ImageReader reader) {
+        if (previewWidth == 0 || previewHeight == 0) {
+            return;
+        }
+
+        Log.v("Image available", "reading image...");
+        image = reader.acquireNextImage();
+//        counter++;
+//        if (processing) {
+//            image.close();
+//            return;
+//        }
+//        processing = true;
+//                    try {
+//                        TimeUnit.SECONDS.sleep(1);
+//                    } catch (InterruptedException e) {
+//                        e.printStackTrace();
+//                    }
+//        int w = image.getWidth();
+//        int h = image.getHeight();
+//        ByteBuffer Ybuffer = image.getPlanes()[0].getBuffer();
+//        ByteBuffer Ubuffer = image.getPlanes()[1].getBuffer();
+//        ByteBuffer Vbuffer = image.getPlanes()[2].getBuffer();
+//
+//        // TODO: use these for proper image processing on different formats.
+//        int rowStride = image.getPlanes()[1].getRowStride();
+//        int pixelStride = image.getPlanes()[1].getPixelStride();
+//        byte[] Y = new byte[Ybuffer.capacity()];
+//        byte[] U = new byte[Ubuffer.capacity()];
+//        byte[] V = new byte[Vbuffer.capacity()];
+//        Ybuffer.get(Y);
+//        Ubuffer.get(U);
+//        Vbuffer.get(V);
+//
+//        predictedClass = classificationFromCaffe2(h, w, Y, U, V,
+//                rowStride, pixelStride, run_HWC);
+//        Log.v(LOG_TAG, "class:"+predictedClass);
+//        runOnUiThread(new Runnable() {
+//            @Override
+//            public void run() {
+//                textView.setText("hi!");
+//                processing = false;
+//            }
+//        });
+        image.close();
     }
 
     @Override
@@ -119,6 +164,8 @@ public abstract class CameraPreviewActivity extends Activity
                 new CameraPreviewFragment.PreviewCallback() {
                 @Override
                 public void onPreviewSizeChosen(final Size size, final int rotation) {
+                    previewHeight = size.getHeight();
+                    previewWidth = size.getWidth();
                     CameraPreviewActivity.this.onPreviewSizeChosen(size, rotation);
                 }
             },
@@ -133,49 +180,6 @@ public abstract class CameraPreviewActivity extends Activity
     }
 
 
-    @Override
-    public void onImageAvailable(final ImageReader reader) {
-        Log.v("Image available", "reading image...");
-        image = reader.acquireNextImage();
-        counter++;
-        if (processing) {
-            image.close();
-            return;
-        }
-        processing = true;
-//                    try {
-//                        TimeUnit.SECONDS.sleep(1);
-//                    } catch (InterruptedException e) {
-//                        e.printStackTrace();
-//                    }
-        int w = image.getWidth();
-        int h = image.getHeight();
-        ByteBuffer Ybuffer = image.getPlanes()[0].getBuffer();
-        ByteBuffer Ubuffer = image.getPlanes()[1].getBuffer();
-        ByteBuffer Vbuffer = image.getPlanes()[2].getBuffer();
-
-        // TODO: use these for proper image processing on different formats.
-        int rowStride = image.getPlanes()[1].getRowStride();
-        int pixelStride = image.getPlanes()[1].getPixelStride();
-        byte[] Y = new byte[Ybuffer.capacity()];
-        byte[] U = new byte[Ubuffer.capacity()];
-        byte[] V = new byte[Vbuffer.capacity()];
-        Ybuffer.get(Y);
-        Ubuffer.get(U);
-        Vbuffer.get(V);
-
-        predictedClass = classificationFromCaffe2(h, w, Y, U, V,
-                rowStride, pixelStride, run_HWC);
-        Log.v(LOG_TAG, "class:"+predictedClass);
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                textView.setText(predictedClass);
-                processing = false;
-            }
-        });
-        image.close();
-    }
 
     protected abstract void onPreviewSizeChosen(final Size size, final int rotation);
     protected abstract int getLayoutId();
