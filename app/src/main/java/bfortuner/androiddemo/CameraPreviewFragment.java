@@ -146,11 +146,12 @@ public class CameraPreviewFragment extends Fragment {
 
         @Override
         public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int width, int height) {
+            configureTransform(width, height);
         }
 
         @Override
         public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
-            return false;
+            return true;
         }
 
         @Override
@@ -199,7 +200,17 @@ public class CameraPreviewFragment extends Fragment {
         mTextView = activity.findViewById(R.id.textView2);
     }
 
+    @Override
+    public void onActivityCreated(final Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+    }
 
+    @Override
+    public void onPause() {
+        closeCamera();
+        stopBackgroundThread();
+        super.onPause();
+    }
 //    @Override
 //    public void onAttach(Context context) {
 //        super.onAttach(context);
@@ -216,6 +227,7 @@ public class CameraPreviewFragment extends Fragment {
 //        super.onDetach();
 //        mListener = null;
 //    }
+
 // TODO: Pretty sure this crap needs to be in the CameraPreviewActivity...
     @Override
     public void onResume() {
@@ -243,6 +255,25 @@ public class CameraPreviewFragment extends Fragment {
             mBackgroundHandler = null;
         } catch (InterruptedException e) {
             e.printStackTrace();
+        }
+    }
+
+
+    /**
+     * Closes the current {@link CameraDevice}.
+     */
+    private void closeCamera() {
+        if (null != mCameraCaptureSession) {
+            mCameraCaptureSession.close();
+            mCameraCaptureSession = null;
+        }
+        if (null != mCameraDevice) {
+            mCameraDevice.close();
+            mCameraDevice = null;
+        }
+        if (null != mReader) {
+            mReader.close();
+            mReader = null;
         }
     }
 

@@ -1,66 +1,26 @@
 package bfortuner.androiddemo;
 
-import android.Manifest;
+
 import android.app.Activity;
-import android.app.Fragment;
-import android.content.Context;
-import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
-import android.content.res.Configuration;
-import android.graphics.ImageFormat;
-import android.graphics.Matrix;
-import android.graphics.Point;
-import android.graphics.RectF;
-import android.graphics.SurfaceTexture;
-import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraCaptureSession;
-import android.hardware.camera2.CameraCharacteristics;
-import android.hardware.camera2.CameraDevice;
-import android.hardware.camera2.CameraManager;
-import android.hardware.camera2.CaptureRequest;
-import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Size;
-import android.view.Surface;
-import android.view.TextureView;
-import android.widget.TextView;
 
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public abstract class CameraPreviewActivity extends Activity
         implements ImageReader.OnImageAvailableListener {
 
-    private static final int REQUEST_CAMERA_PERMISSION = 200;
     private static final String LOG_TAG = "CameraPreview";
-    private AutoFitTextureView textureView;
-    private TextView textView;
-    private Integer counter = 0;
-    private CameraDevice cameraDevice;
-    private String cameraId;
-    protected CameraCaptureSession cameraCaptureSession;
-    protected CaptureRequest.Builder captureRequestBuilder;
-    private CaptureRequest capturePreviewRequest;
 
     private Image image = null;
-    private ImageReader reader;
-    private Size previewSize;
-    private HandlerThread backgroundThread;
-    private Handler backgroundHandler;
+
+    private Integer counter = 0;
     private boolean processing = false;
     private AssetManager mgr;
     private String predictedClass = "none";
@@ -91,7 +51,7 @@ public abstract class CameraPreviewActivity extends Activity
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+        super.onCreate(null);
         setContentView(R.layout.activity_camera_preview);
 
         setFragment();
